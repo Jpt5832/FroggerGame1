@@ -11,12 +11,19 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private final int panelWidth = 600, panelHeight = 600;
 
     private final ArrayList<Car> cars = new ArrayList<>();
-    private final int laneHeight = 60;
-    private final int numLanes = 5;
+    private final ArrayList<LilyPad> lilyPads = new ArrayList<>();
+
+    // Section heights
+    private final int roadHeight = 250;
+    private final int waterHeight = 100;
+    private final int landHeight = 100;
 
     private boolean gameWon = false;
     private boolean gameOver = false;
     private String message = "";
+
+    private final int laneHeight = 40;
+    private final int laneGap = 15;
 
     public FroggerGame() {
         setPreferredSize(new Dimension(panelWidth, panelHeight));
@@ -27,32 +34,61 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         timer.start();
 
         Random rand = new Random();
-        for (int i = 0; i < numLanes; i++) {
-            int y = laneHeight * (i + 1);
-            int speed = rand.nextInt(3) + 2;
+        for (int i = 0; i < 4; i++) {
+            int y = landHeight + waterHeight + (laneHeight + laneGap) * i;
             boolean leftToRight = i % 2 == 0;
-            cars.add(new Car(leftToRight ? 0 : panelWidth, y, 80, 40, speed * (leftToRight ? 1 : -1)));
+            for (int j = 0; j < 2; j++) {
+                int startX = leftToRight ? -j * 200 : panelWidth + j * 200;
+                int speed = rand.nextInt(3) + 2 + rand.nextInt(2);
+                int actualSpeed = speed * (leftToRight ? 1 : -1);
+                cars.add(new Car(startX, y, 80, laneHeight, actualSpeed));
+            }
+        }
+
+        for (int i = 0; i < 2; i++) {
+            int y = landHeight + (laneHeight + laneGap) * i;
+            boolean leftToRight = i % 2 == 0;
+            for (int j = 0; j < 2; j++) {
+                int startX = leftToRight ? -j * 200 : panelWidth + j * 200;
+                int speed = rand.nextInt(2) + 1;
+                lilyPads.add(new LilyPad(startX, y, 100, laneHeight, speed * (leftToRight ? 1 : -1)));
+            }
         }
     }
 
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        // Draw goal line
         g.setColor(Color.green);
-        g.fillRect(0, 0, panelWidth, laneHeight);
+        g.fillRect(0, 0, panelWidth, landHeight);
 
-        // Draw frog
-        g.setColor(Color.yellow);
-        g.fillRect(frogX, frogY, frogSize, frogSize);
+        g.setColor(Color.blue);
+        g.fillRect(0, landHeight, panelWidth, waterHeight);
 
-        // Draw cars
+        g.setColor(new Color(34, 139, 34));
+        for (LilyPad pad : lilyPads) {
+            if (pad.y + pad.height <= landHeight + waterHeight && pad.y >= landHeight) {
+                g.fillOval(pad.x, pad.y, pad.width, pad.height);
+            }
+        }
+
+        g.setColor(Color.darkGray);
+        g.fillRect(0, landHeight + waterHeight, panelWidth, roadHeight);
+
         g.setColor(Color.red);
         for (Car car : cars) {
             g.fillRect(car.x, car.y, car.width, car.height);
         }
 
-        // Show win/lose message
+        g.setColor(Color.white);
+        for (int i = 0; i < 4; i++) {
+            int y = landHeight + waterHeight + (laneHeight + laneGap) * i + laneHeight / 2;
+            drawDashedLine(g, 0, y, panelWidth, y);
+        }
+
+        g.setColor(Color.yellow);
+        g.fillRect(frogX, frogY, frogSize, frogSize);
+
         if (gameOver) {
             g.setColor(Color.white);
             g.setFont(new Font("Arial", Font.BOLD, 40));
@@ -61,6 +97,13 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             g.setFont(new Font("Arial", Font.PLAIN, 20));
             g.drawString("Press ENTER to play again", 180, 340);
         }
+    }
+
+    private void drawDashedLine(Graphics g, int x1, int y1, int x2, int y2) {
+        float dash[] = {10.0f};
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, dash, 0));
+        g2d.drawLine(x1, y1, x2, y2);
     }
 
     public void actionPerformed(ActionEvent e) {
@@ -75,7 +118,28 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             }
         }
 
-        if (frogY < laneHeight) {
+        for (LilyPad pad : lilyPads) {
+            pad.move(panelWidth);
+        }
+
+        if (frogY < landHeight + waterHeight && frogY >= landHeight) {
+            boolean onLilyPad = false;
+            for (LilyPad pad : lilyPads) {
+                if (pad.x < frogX + frogSize && pad.x + pad.width > frogX &&
+                        pad.y < frogY + frogSize && pad.y + pad.height > frogY) {
+                    onLilyPad = true;
+                    break;
+                }
+            }
+
+            if (!onLilyPad) {
+                message = "YOU DROWNED!";
+                gameOver = true;
+                timer.stop();
+            }
+        }
+
+        if (frogY < landHeight) {
             message = "YOU WIN!";
             gameOver = true;
             timer.stop();
@@ -117,7 +181,6 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     public void keyReleased(KeyEvent e) {}
     public void keyTyped(KeyEvent e) {}
 
-    // Car class
     private static class Car {
         int x, y, width, height, speed;
 
@@ -141,9 +204,26 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         }
     }
 
-    // Main method
+    private static class LilyPad {
+        int x, y, width, height, speed;
+
+        public LilyPad(int x, int y, int width, int height, int speed) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.speed = speed;
+        }
+
+        public void move(int panelWidth) {
+            x += speed;
+            if (x + width < 0) x = panelWidth;
+            if (x > panelWidth) x = -width;
+        }
+    }
+
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Frogger");
+        JFrame frame = new JFrame("Frogger Game");
         FroggerGame game = new FroggerGame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.add(game);
@@ -151,4 +231,15 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         frame.setVisible(true);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
 
