@@ -353,7 +353,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             return sinking;
         }
     }
-
+//
     public static void main(String[] args) {
         JFrame frame = new JFrame("Frogger Game");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
