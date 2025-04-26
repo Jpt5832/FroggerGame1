@@ -1,6 +1,9 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -8,22 +11,29 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private Timer timer;
     private int frogX = 250, frogY = 550;
     private final int frogSize = 40;
-    private final int panelWidth = 600, panelHeight = 600;
+    private final int panelWidth = 600;
+    private static final int panelHeight = 600;
 
     private final ArrayList<Car> cars = new ArrayList<>();
     private final ArrayList<LilyPad> lilyPads = new ArrayList<>();
+    private final ArrayList<Frog> frogs = new ArrayList<>();  // New list for different colored frogs
 
     // Section heights
     private final int roadHeight = 250;
     private final int waterHeight = 100;
-    private final int landHeight = 100;
+    private static final int landHeight = 100;  // Safe zone height where frogs will be placed
 
     private boolean gameWon = false;
     private boolean gameOver = false;
     private String message = "";
 
-    private final int laneHeight = 40;
-    private final int laneGap = 15;
+    private static final int laneHeight = 40;
+    private static final int laneGap = 15;
+
+    private long lastSinkingTime = 0;  // Track time for lily pad sinking
+    private static final int SINK_INTERVAL = 5000;  // Sink one lily pad every 5 seconds
+
+    private int frogsCollected = 0;  // Track how many frogs the player has collected
 
     public FroggerGame() {
         setPreferredSize(new Dimension(panelWidth, panelHeight));
@@ -54,6 +64,13 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 lilyPads.add(new LilyPad(startX, y, 100, laneHeight, speed * (leftToRight ? 1 : -1)));
             }
         }
+
+        // Add 5 different colored frogs along the top of the screen (in the green area after the water)
+        for (int i = 0; i < 5; i++) {
+            int x = (i + 1) * (panelWidth / 6);  // Evenly distribute frogs across the top of the screen
+            int y = landHeight - frogSize;  // Place frogs in the safe zone (just above the water)
+            frogs.add(new Frog(x, y, frogSize, frogSize, getRandomColor()));
+        }
     }
 
     public void paintComponent(Graphics g) {
@@ -67,7 +84,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
 
         g.setColor(new Color(34, 139, 34));
         for (LilyPad pad : lilyPads) {
-            if (pad.y + pad.height <= landHeight + waterHeight && pad.y >= landHeight) {
+            if (pad.y + pad.height <= landHeight + waterHeight && pad.y >= landHeight && !pad.isSinking()) {
                 g.fillOval(pad.x, pad.y, pad.width, pad.height);
             }
         }
@@ -89,6 +106,14 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         g.setColor(Color.yellow);
         g.fillRect(frogX, frogY, frogSize, frogSize);
 
+        // Draw the colored frogs
+        for (Frog f : frogs) {
+            if (!f.isCollected()) {
+                g.setColor(f.getColor());
+                g.fillRect(f.getX(), f.getY(), f.getWidth(), f.getHeight());
+            }
+        }
+
         if (gameOver) {
             g.setColor(Color.white);
             g.setFont(new Font("Arial", Font.BOLD, 40));
@@ -109,6 +134,16 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     public void actionPerformed(ActionEvent e) {
         if (gameOver) return;
 
+        long currentTime = System.currentTimeMillis();
+
+        // Sink one lily pad every 5 seconds
+        if (currentTime - lastSinkingTime >= SINK_INTERVAL) {
+            lastSinkingTime = currentTime;
+            // Sink a random lily pad
+            int randomIndex = new Random().nextInt(lilyPads.size());
+            lilyPads.get(randomIndex).sink();
+        }
+
         for (Car car : cars) {
             car.move(panelWidth);
             if (car.intersects(frogX, frogY, frogSize, frogSize)) {
@@ -122,10 +157,27 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             pad.move(panelWidth);
         }
 
+        // Check if frog has collected any colored frogs
+        for (Frog f : frogs) {
+            if (!f.isCollected() && f.getX() < frogX + frogSize && f.getX() + f.getWidth() > frogX &&
+                    f.getY() < frogY + frogSize && f.getY() + f.getHeight() > frogY) {
+                f.collect();
+                frogsCollected++;
+                break;
+            }
+        }
+
+        // Winning condition: all 5 frogs collected
+        if (frogsCollected == 5) {
+            message = "YOU WIN!";
+            gameOver = true;
+            timer.stop();
+        }
+
         if (frogY < landHeight + waterHeight && frogY >= landHeight) {
             boolean onLilyPad = false;
             for (LilyPad pad : lilyPads) {
-                if (pad.x < frogX + frogSize && pad.x + pad.width > frogX &&
+                if (!pad.isSinking() && pad.x < frogX + frogSize && pad.x + pad.width > frogX &&
                         pad.y < frogY + frogSize && pad.y + pad.height > frogY) {
                     onLilyPad = true;
                     break;
@@ -158,6 +210,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         gameWon = false;
         gameOver = false;
         message = "";
+        frogsCollected = 0;  // Reset frog collection count
         timer.start();
     }
 
@@ -180,6 +233,59 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
 
     public void keyReleased(KeyEvent e) {}
     public void keyTyped(KeyEvent e) {}
+
+    // Frog class to handle colored frogs
+    private static class Frog {
+        private int x, y, width, height;
+        private Color color;
+        private boolean collected;
+
+        public Frog(int x, int y, int width, int height, Color color) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.color = color;
+            this.collected = false;
+        }
+
+        public void collect() {
+            this.collected = true;
+        }
+
+        public boolean isCollected() {
+            return collected;
+        }
+
+        public int getX() {
+            return x;
+        }
+
+        public int getY() {
+            return y;
+        }
+
+        public int getWidth() {
+            return width;
+        }
+
+        public int getHeight() {
+            return height;
+        }
+
+        public Color getColor() {
+            return color;
+        }
+    }
+
+    // Helper method to generate random colors
+    private Color getRandomColor() {
+        Random rand = new Random();
+        int r = rand.nextInt(256);
+        int g = rand.nextInt(256);
+        int b = rand.nextInt(256);
+        return new Color(r, g, b);
+    }
 
     private static class Car {
         int x, y, width, height, speed;
@@ -206,6 +312,8 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
 
     private static class LilyPad {
         int x, y, width, height, speed;
+        boolean sinking;
+        long sinkStartTime;
 
         public LilyPad(int x, int y, int width, int height, int speed) {
             this.x = x;
@@ -213,12 +321,35 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             this.width = width;
             this.height = height;
             this.speed = speed;
+            this.sinking = false;
+            this.sinkStartTime = 0;
         }
 
         public void move(int panelWidth) {
             x += speed;
             if (x + width < 0) x = panelWidth;
             if (x > panelWidth) x = -width;
+
+            // Handle sinking logic
+            if (sinking) {
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - sinkStartTime >= 2000) { // Resurface after 2 seconds
+                    sinking = false;
+                    y = landHeight + (laneHeight + laneGap) * new Random().nextInt(2); // Reset y position for resurfacing
+                }
+            }
+        }
+
+        public void sink() {
+            if (!sinking) {
+                sinking = true;
+                sinkStartTime = System.currentTimeMillis();
+                y = panelHeight;  // Move the lily pad off-screen to simulate sinking
+            }
+        }
+
+        public boolean isSinking() {
+            return sinking;
         }
     }
 
@@ -231,12 +362,6 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         frame.setVisible(true);
     }
 }
-
-
-
-
-
-
 
 
 
