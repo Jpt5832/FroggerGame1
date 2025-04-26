@@ -185,6 +185,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 f.collect();
                 frogsCollected++;
                 playSound(ribbitClip);
+                resetFrog();
                 break;
             }
         }
