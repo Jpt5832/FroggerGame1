@@ -9,14 +9,15 @@ import javax.sound.sampled.*;
 public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private Timer timer;
     private int frogX = 250, frogY = 550;
+    private int targetX = 250, targetY = 550;
     private final int frogSize = 40;
     private final int panelWidth = 600;
-    private final int panelHeight = 600;
+    private static final int panelHeight = 600;
     private boolean isMoving = false;
     private int hopFrame = 0;
     private final int hopDuration = 10;
     private final int hopHeight = 10;
-    private final int STEP = 50;
+    private static final int STEP = 50;
 
     private final ArrayList<Car> cars = new ArrayList<>();
     private final ArrayList<LilyPad> lilyPads = new ArrayList<>();
@@ -24,13 +25,13 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
 
     private final int roadHeight = 250;
     private final int waterHeight = 100;
-    private final int landHeight = 100;
+    private static final int landHeight = 100;
 
     private boolean gameOver = false;
     private String message = "";
 
-    private final int laneHeight = 40;
-    private final int laneGap = 15;
+    private static final int laneHeight = 40;
+    private static final int laneGap = 15;
 
     private int frogsCollected = 0;
     private int lives = 3;
@@ -55,7 +56,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             boolean leftToRight = i % 2 == 0;
             for (int j = 0; j < 2; j++) {
                 int startX = leftToRight ? -j * 200 : panelWidth + j * 200;
-                int speed = rand.nextInt(3) + 2 + rand.nextInt(2);
+                int speed = rand.nextInt(3) + 2;
                 int actualSpeed = speed * (leftToRight ? 1 : -1);
                 cars.add(new Car(startX, y, 80, laneHeight, actualSpeed));
             }
@@ -66,7 +67,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             boolean leftToRight = i % 2 == 0;
             for (int j = 0; j < 2; j++) {
                 int startX = leftToRight ? -j * 200 : panelWidth + j * 200;
-                int speed = rand.nextInt(2) + 1;
+                int speed = rand.nextInt(2) + 2;
                 lilyPads.add(new LilyPad(startX, y, 100, laneHeight, speed * (leftToRight ? 1 : -1)));
             }
         }
@@ -109,7 +110,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         g.fillRect(0, landHeight, panelWidth, waterHeight);
         g.setColor(new Color(34, 139, 34));
         for (LilyPad pad : lilyPads) {
-            if (!pad.isSinking() && pad.y >= landHeight && pad.y + pad.height <= landHeight + waterHeight) {
+            if (!pad.isSinking()) {
                 g.fillOval(pad.x, pad.y, pad.width, pad.height);
             }
         }
@@ -119,18 +120,21 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         for (Car car : cars) g.fillRect(car.x, car.y, car.width, car.height);
         g.setColor(Color.white);
         for (int i = 0; i < 4; i++) {
-            int y = landHeight + waterHeight + (laneHeight + laneGap) * i + laneHeight/2;
+            int y = landHeight + waterHeight + (laneHeight + laneGap) * i + laneHeight / 2;
             drawDashedLine(g, 0, y, panelWidth, y);
         }
+
         int offset = getHopOffset();
         g.setColor(Color.yellow);
         g.fillRect(frogX, frogY - offset, frogSize, frogSize);
+
         for (Frog f : frogs) {
             if (!f.isCollected()) {
                 g.setColor(f.getColor());
                 g.fillRect(f.getX(), f.getY(), f.getWidth(), f.getHeight());
             }
         }
+
         g.setColor(Color.white);
         g.setFont(new Font("Arial", Font.PLAIN, 20));
         g.drawString("Lives: " + lives, 10, 20);
@@ -146,12 +150,12 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private int getHopOffset() {
         if (!isMoving) return 0;
         double t = Math.PI * hopFrame / hopDuration;
-        return (int)(Math.sin(t) * hopHeight);
+        return (int) (Math.sin(t) * hopHeight);
     }
 
     private void drawDashedLine(Graphics g, int x1, int y1, int x2, int y2) {
         float dash[] = {10.0f};
-        Graphics2D g2d = (Graphics2D)g;
+        Graphics2D g2d = (Graphics2D) g;
         g2d.setStroke(new BasicStroke(2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, dash, 0));
         g2d.drawLine(x1, y1, x2, y2);
     }
@@ -159,6 +163,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         if (gameOver) return;
+
         if (isMoving) {
             hopFrame++;
             if (hopFrame >= hopDuration) {
@@ -166,18 +171,20 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 hopFrame = 0;
             }
         }
+
         for (Car car : cars) {
             car.move(panelWidth);
             if (car.intersects(frogX, frogY, frogSize, frogSize)) {
                 playSound(squishClip);
                 loseLife();
-                return;
             }
         }
+
         for (LilyPad pad : lilyPads) pad.move(panelWidth);
+
         for (Frog f : frogs) {
-            if (!f.isCollected() && f.getX() < frogX+frogSize && f.getX()+f.getWidth()>frogX &&
-                    f.getY()<frogY+frogSize && f.getY()+f.getHeight()>frogY) {
+            if (!f.isCollected() && f.getX() < frogX + frogSize && f.getX() + f.getWidth() > frogX &&
+                    f.getY() < frogY + frogSize && f.getY() + f.getHeight() > frogY) {
                 f.collect();
                 frogsCollected++;
                 playSound(ribbitClip);
@@ -185,18 +192,20 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 break;
             }
         }
+
         if (frogsCollected == 5) {
             message = "YOU WIN!";
             gameOver = true;
             timer.stop();
-            repaint();
         }
-        if (frogY>=landHeight && frogY<landHeight+waterHeight) {
-            boolean onPad=false;
-            for (LilyPad pad:lilyPads) {
-                if (!pad.isSinking() && frogX<pad.x+pad.width && frogX+frogSize>pad.x &&
-                        frogY<pad.y+pad.height && frogY+frogSize>pad.y) {
-                    onPad=true; break;
+
+        if (frogY >= landHeight && frogY < landHeight + waterHeight) {
+            boolean onPad = false;
+            for (LilyPad pad : lilyPads) {
+                if (!pad.isSinking() && frogX < pad.x + pad.width && frogX + frogSize > pad.x &&
+                        frogY < pad.y + pad.height && frogY + frogSize > pad.y) {
+                    onPad = true;
+                    break;
                 }
             }
             if (!onPad) {
@@ -204,24 +213,25 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 loseLife();
             }
         }
+
         repaint();
     }
 
     private void loseLife() {
         lives--;
         if (lives <= 0) {
-            message = "YOU LOSE!";
+            message = "GAME OVER!";
             gameOver = true;
             timer.stop();
-            repaint();
-        } else {
-            resetFrog();
         }
+        resetFrog();
     }
 
     private void resetFrog() {
         frogX = 250;
         frogY = 550;
+        targetX = frogX;
+        targetY = frogY;
         isMoving = false;
         hopFrame = 0;
     }
@@ -229,58 +239,82 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private void restartGame() {
         resetFrog();
         frogsCollected = 0;
-        lives = 3;
         frogs.forEach(f -> f.collected = false);
         message = "";
+        lives = 3;
         gameOver = false;
         timer.start();
     }
 
-    @Override public void keyPressed(KeyEvent e) {
+    @Override
+    public void keyPressed(KeyEvent e) {
         if (gameOver && e.getKeyCode() == KeyEvent.VK_ENTER) {
             restartGame();
             return;
         }
         if (isMoving) return;
-        switch(e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:  frogX = Math.max(frogX - STEP, 0); isMoving = true; break;
-            case KeyEvent.VK_RIGHT: frogX = Math.min(frogX + STEP, panelWidth - frogSize); isMoving = true; break;
-            case KeyEvent.VK_UP:    frogY = Math.max(frogY - STEP, 0); isMoving = true; break;
-            case KeyEvent.VK_DOWN:  frogY = Math.min(frogY + STEP, panelHeight - frogSize); isMoving = true; break;
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_LEFT:
+                frogX = Math.max(frogX - STEP, 0);
+                isMoving = true;
+                break;
+            case KeyEvent.VK_RIGHT:
+                frogX = Math.min(frogX + STEP, panelWidth - frogSize);
+                isMoving = true;
+                break;
+            case KeyEvent.VK_UP:
+                frogY = Math.max(frogY - STEP, 0);
+                isMoving = true;
+                break;
+            case KeyEvent.VK_DOWN:
+                frogY = Math.min(frogY + STEP, panelHeight - frogSize);
+                isMoving = true;
+                break;
         }
     }
+
     @Override public void keyReleased(KeyEvent e) {}
     @Override public void keyTyped(KeyEvent e) {}
 
     private static class Car {
         int x, y, width, height, speed;
-        Car(int x, int y, int w, int h, int s) {
-            this.x = x; this.y = y; this.width = w; this.height = h; this.speed = s;
-        }
-        void move(int pw) {
-            x += speed; if (speed > 0 && x > pw) x = -width; if (speed < 0 && x + width < 0) x = pw;
-        }
-        boolean intersects(int fx, int fy, int fw, int fh) {
-            return fx < x + width && fx + fw > x && fy < y + height && fy + fh > y;
-        }
+        Car(int x, int y, int w, int h, int s) { this.x = x; this.y = y; this.width = w; this.height = h; this.speed = s; }
+        void move(int pw) { x += speed; if (speed > 0 && x > pw) x = -width; if (speed < 0 && x + width < 0) x = pw; }
+        boolean intersects(int fx, int fy, int fw, int fh) { return fx < x + width && fx + fw > x && fy < y + height && fy + fh > y; }
     }
 
     private static class LilyPad {
         int x, y, width, height, speed;
         boolean sinking = false;
         long st;
+        private final int normalY;
+
         LilyPad(int x, int y, int w, int h, int s) {
-            this.x = x; this.y = y; this.width = w; this.height = h; this.speed = s;
+            this.x = x;
+            this.y = y;
+            this.width = w;
+            this.height = h;
+            this.speed = s;
+            this.normalY = y;
         }
+
         void move(int pw) {
             x += speed;
             if (x + width < 0) x = pw;
             if (x > pw) x = -width;
-            if (sinking && System.currentTimeMillis() - st > 2000) sinking = false;
+
+            if (sinking && System.currentTimeMillis() - st > 2000) {
+                sinking = false;
+                y = normalY;
+            }
+
+            if (!sinking && Math.random() < 0.002) { // chance to sink
+                sinking = true;
+                st = System.currentTimeMillis();
+                y = panelHeight; // sink out of view
+            }
         }
-        void sink() {
-            if (!sinking) { sinking = true; st = System.currentTimeMillis(); y = 600; }
-        }
+
         boolean isSinking() { return sinking; }
     }
 
@@ -288,9 +322,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         int x, y, width, height;
         Color color;
         boolean collected = false;
-        Frog(int x, int y, int w, int h, Color c) {
-            this.x = x; this.y = y; this.width = w; this.height = h; this.color = c;
-        }
+        Frog(int x, int y, int w, int h, Color c) { this.x = x; this.y = y; this.width = w; this.height = h; this.color = c; }
         void collect() { collected = true; }
         boolean isCollected() { return collected; }
         int getX() { return x; }
@@ -314,4 +346,5 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         frame.setVisible(true);
     }
 }
+
 
