@@ -39,6 +39,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private Clip squishClip;
     private Clip drownClip;
     private Clip ribbitClip;
+    private Clip jumpClip;  // Added jumpClip
 
     public FroggerGame() {
         setPreferredSize(new Dimension(panelWidth, panelHeight));
@@ -84,10 +85,12 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             squishClip = AudioSystem.getClip();
             drownClip = AudioSystem.getClip();
             ribbitClip = AudioSystem.getClip();
+            jumpClip = AudioSystem.getClip();  // Load the jump sound
 
             squishClip.open(AudioSystem.getAudioInputStream(new File("Resource/squish.wav")));
             drownClip.open(AudioSystem.getAudioInputStream(new File("Resource/drown.wav")));
             ribbitClip.open(AudioSystem.getAudioInputStream(new File("Resource/ribbit.wav")));
+            jumpClip.open(AudioSystem.getAudioInputStream(new File("Resource/jump.wav")));  // Open the jump sound
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -257,18 +260,22 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             case KeyEvent.VK_LEFT:
                 frogX = Math.max(frogX - STEP, 0);
                 isMoving = true;
+                playSound(jumpClip);  // Play jump sound
                 break;
             case KeyEvent.VK_RIGHT:
                 frogX = Math.min(frogX + STEP, panelWidth - frogSize);
                 isMoving = true;
+                playSound(jumpClip);  // Play jump sound
                 break;
             case KeyEvent.VK_UP:
                 frogY = Math.max(frogY - STEP, 0);
                 isMoving = true;
+                playSound(jumpClip);  // Play jump sound
                 break;
             case KeyEvent.VK_DOWN:
                 frogY = Math.min(frogY + STEP, panelHeight - frogSize);
                 isMoving = true;
+                playSound(jumpClip);  // Play jump sound
                 break;
         }
     }
@@ -346,5 +353,4 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
         frame.setVisible(true);
     }
 }
-
 
