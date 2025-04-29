@@ -39,7 +39,12 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     private Clip squishClip;
     private Clip drownClip;
     private Clip ribbitClip;
-    private Clip jumpClip;  // Added jumpClip
+    private Clip jumpClip;
+    private Clip honkClip;
+
+    private long lastHonkTime = 0;
+    private int honkCooldown = 5000;
+    private final Random rand = new Random();
 
     public FroggerGame() {
         setPreferredSize(new Dimension(panelWidth, panelHeight));
@@ -51,7 +56,6 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
 
         loadSounds();
 
-        Random rand = new Random();
         for (int i = 0; i < 4; i++) {
             int y = landHeight + waterHeight + (laneHeight + laneGap) * i;
             boolean leftToRight = i % 2 == 0;
@@ -85,12 +89,14 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             squishClip = AudioSystem.getClip();
             drownClip = AudioSystem.getClip();
             ribbitClip = AudioSystem.getClip();
-            jumpClip = AudioSystem.getClip();  // Load the jump sound
+            jumpClip = AudioSystem.getClip();
+            honkClip = AudioSystem.getClip();
 
             squishClip.open(AudioSystem.getAudioInputStream(new File("Resource/squish.wav")));
             drownClip.open(AudioSystem.getAudioInputStream(new File("Resource/drown.wav")));
             ribbitClip.open(AudioSystem.getAudioInputStream(new File("Resource/ribbit.wav")));
-            jumpClip.open(AudioSystem.getAudioInputStream(new File("Resource/jump.wav")));  // Open the jump sound
+            jumpClip.open(AudioSystem.getAudioInputStream(new File("Resource/jump.wav")));
+            honkClip.open(AudioSystem.getAudioInputStream(new File("Resource/honk.wav")));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -181,6 +187,17 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 playSound(squishClip);
                 loseLife();
             }
+
+            int dx = Math.abs(car.x - frogX);
+            int dy = Math.abs(car.y - frogY);
+            if (dx < 100 && dy < 40) {
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastHonkTime >= honkCooldown) {
+                    playSound(honkClip);
+                    lastHonkTime = currentTime;
+                    honkCooldown = 5000 + rand.nextInt(5000); // 5–10 seconds
+                }
+            }
         }
 
         for (LilyPad pad : lilyPads) pad.move(panelWidth);
@@ -260,22 +277,22 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
             case KeyEvent.VK_LEFT:
                 frogX = Math.max(frogX - STEP, 0);
                 isMoving = true;
-                playSound(jumpClip);  // Play jump sound
+                playSound(jumpClip);
                 break;
             case KeyEvent.VK_RIGHT:
                 frogX = Math.min(frogX + STEP, panelWidth - frogSize);
                 isMoving = true;
-                playSound(jumpClip);  // Play jump sound
+                playSound(jumpClip);
                 break;
             case KeyEvent.VK_UP:
                 frogY = Math.max(frogY - STEP, 0);
                 isMoving = true;
-                playSound(jumpClip);  // Play jump sound
+                playSound(jumpClip);
                 break;
             case KeyEvent.VK_DOWN:
                 frogY = Math.min(frogY + STEP, panelHeight - frogSize);
                 isMoving = true;
-                playSound(jumpClip);  // Play jump sound
+                playSound(jumpClip);
                 break;
         }
     }
@@ -315,10 +332,10 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
                 y = normalY;
             }
 
-            if (!sinking && Math.random() < 0.002) { // chance to sink
+            if (!sinking && Math.random() < 0.002) {
                 sinking = true;
                 st = System.currentTimeMillis();
-                y = panelHeight; // sink out of view
+                y = panelHeight;
             }
         }
 
@@ -340,8 +357,7 @@ public class FroggerGame extends JPanel implements ActionListener, KeyListener {
     }
 
     private Color getRandomColor() {
-        Random r = new Random();
-        return new Color(r.nextInt(256), r.nextInt(256), r.nextInt(256));
+        return new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256));
     }
 
     public static void main(String[] args) {
